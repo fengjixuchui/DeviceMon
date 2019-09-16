@@ -191,7 +191,8 @@ extern "C"
 	DmGetBarEptEntry(
 		_In_ PCIMONITORCFG* Cfg,
 		_In_ ULONG	  BarIndex,
-		_In_ EptData*  ept_data
+                _In_ ULONG	  BarWidthIndex,
+		_In_ EptData*     ept_data
 	)
 	{
 		EptCommonEntry*  Entry = nullptr;
@@ -204,7 +205,7 @@ extern "C"
 			Cfg->BarOffset[BarIndex]
 		);
 
-		if (Cfg->BarAddressWidth[BarIndex] & PCI_BAR_64BIT)
+		if (Cfg->BarAddressWidth[BarWidthIndex] & PCI_BAR_64BIT)
 		{
 			ULONG64 UpperPa = DmGetDeviceBarAddress(
 				Cfg->BusNumber,
@@ -250,12 +251,13 @@ extern "C"
 	NTSTATUS DmEnableDeviceMonitor(
 		_In_ EptData* ept_data)
 	{
+                ULONG BarWidthIndex = 0;
 		EptCommonEntry*  Entry = nullptr;
 		for (int i = 0; i < sizeof(g_MonitorDeviceList) / sizeof(PCIMONITORCFG); i++)
 		{
-			for (int j = 0; j < g_MonitorDeviceList[i].BarCount; j++)
+			for (int j = 0; j < g_MonitorDeviceList[i].BarCount; j++, BarWidthIndex++)
 			{
-				Entry = DmGetBarEptEntry(&g_MonitorDeviceList[i], j, ept_data);
+				Entry = DmGetBarEptEntry(&g_MonitorDeviceList[i], j, BarWidthIndex, ept_data);
 				if (!Entry)
 				{
 					HYPERPLATFORM_LOG_DEBUG("- [PCI] PCIBAR ept Entry Not Found \r\n");
@@ -265,11 +267,11 @@ extern "C"
 				HYPERPLATFORM_LOG_DEBUG("+ [PCI] Entry= %p BAR= %p \r\n", 
 					Entry->all, g_MonitorDeviceList[i].BarAddress[j]);
 
-				Entry->fields.read_access		= false;
-				Entry->fields.write_access		= false;
+				Entry->fields.read_access	= false;
+				Entry->fields.write_access	= false;
 				Entry->fields.execute_access	= true;
 
-				if (g_MonitorDeviceList[i].BarAddressWidth[j] & PCI_BAR_64BIT)
+				if (g_MonitorDeviceList[i].BarAddressWidth[BarWidthIndex] & PCI_BAR_64BIT)
 				{
 					//Lower - Upper by default.
 					j++;
@@ -281,14 +283,16 @@ extern "C"
 
 	NTSTATUS DmDisableDeviceMonitor(
 		_In_ EptData* ept_data)
-	{
+	{       
+                ULONG            BarWidthIndex = 0; 
 		NTSTATUS		status = STATUS_SUCCESS;
-		EptCommonEntry*  Entry = nullptr;
-		for (int i = 0; i < sizeof(g_MonitorDeviceList) / sizeof(PCIMONITORCFG); i++)
+		EptCommonEntry*          Entry = nullptr;
+		
+                for (int i = 0; i < sizeof(g_MonitorDeviceList) / sizeof(PCIMONITORCFG); i++)
 		{
-			for (int j = 0; j < g_MonitorDeviceList[i].BarCount; j++)
+			for (int j = 0; j < g_MonitorDeviceList[i].BarCount; j++, BarWidthIndex++ )
 			{
-				Entry = DmGetBarEptEntry(&g_MonitorDeviceList[i], j, ept_data);
+				Entry = DmGetBarEptEntry(&g_MonitorDeviceList[i], j, BarWidthIndex, ept_data);
 				if (!Entry)
 				{
 					HYPERPLATFORM_LOG_DEBUG("- [PCI] PCIBAR ept Entry Not Found \r\n");
@@ -301,6 +305,13 @@ extern "C"
 				Entry->fields.read_access = true;
 				Entry->fields.write_access = true;
 				Entry->fields.execute_access = true;
+
+				if (g_MonitorDeviceList[i].BarAddressWidth[BarWidthIndex] & PCI_BAR_64BIT)
+				{
+					//Lower - Upper by default.
+					j++;
+				}
+ 
 			}
 		}
 		return status;
