@@ -119,6 +119,7 @@ bool SpiHandleMmioAccessCallback(
 	ULONG		   Access
 )
 {
+	Context;
 	ULONG Offset = 0;
 
 	Offset = MmioAddress & 0xFFF;
@@ -131,7 +132,7 @@ bool SpiHandleMmioAccessCallback(
 
 	if (Access == 0x1 )
 	{
-		StartFuzz(Context, InstPointer, MmioAddress, InstLen, &SpiFuzzer);
+	//	StartFuzz(Context, InstPointer, MmioAddress, InstLen, &SpiFuzzer);
 	}
 
 	return false;
